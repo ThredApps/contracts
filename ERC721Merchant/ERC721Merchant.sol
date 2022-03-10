@@ -4,11 +4,13 @@ pragma solidity >=0.7.0 <0.9.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./IERC721Merchant.sol";
 
 pragma abicoder v2;
 
 contract ERC721Merchant is
     ERC721URIStorage,
+    IERC721Merchant,
     AccessControl
 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -39,7 +41,7 @@ contract ERC721Merchant is
         address minter,
         uint256 tokenId,
         string memory uri
-    ) public returns (bool) {
+    ) external override returns (bool) {
         require(
             hasRole(MINTER_ROLE, msg.sender),
             "invalid or unauthorized"
