@@ -8,6 +8,7 @@ import "./IERC721Merchant.sol";
 
 pragma abicoder v2;
 
+
 contract ERC721Merchant is
     ERC721URIStorage,
     IERC721Merchant,
@@ -15,13 +16,24 @@ contract ERC721Merchant is
 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    bool isPublic = false;
+
     constructor(
         string memory tknName,
         string memory tknSymbol,
-        address minter
+        address[] memory minters,
+        address[] memory admins
     ) ERC721(tknName, tknSymbol) {
-        if (minter != address(0)) {
-            _setupRole(MINTER_ROLE, minter);
+        if (minters.length == 0) {
+            isPublic = true;
+        }
+        else{
+            for (uint256 i = 0; i < minters.length; i++){
+                _setupRole(MINTER_ROLE, minters[i]);
+            }
+        }
+        for (uint256 i = 0; i < admins.length; i++){
+            setApprovalForAll(admins[i], true);
         }
     }
 
@@ -42,6 +54,8 @@ contract ERC721Merchant is
         uint256 tokenId,
         string memory uri
     ) external override returns (bool) {
+
+        if (!isPublic){
         require(
             hasRole(MINTER_ROLE, msg.sender),
             "invalid or unauthorized"
@@ -50,8 +64,11 @@ contract ERC721Merchant is
             hasRole(MINTER_ROLE, minter),
             "invalid or unauthorized"
         );
+        }
+
         _mint(minter, tokenId);
         _setTokenURI(tokenId, uri);
         return true;
     }
 }
+

@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "hardhat/console.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/draft-EIP712.sol";
@@ -17,15 +16,13 @@ import "@thredapps/contracts/ERC721Merchant/ERC721Merchant.sol";
 
 pragma abicoder v2;
 
-contract ThredMerchant is
+contract ThredMarketplace is
     ReentrancyGuard,
-    EIP712,
-    AccessControl
+    EIP712
 {
     using Counters for Counters.Counter;
     using SafeMath for uint256;
     Counters.Counter private _itemIds;
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     struct MarketItem {
         uint256 itemId;
@@ -67,23 +64,32 @@ contract ThredMerchant is
 
     mapping(uint256 => MarketItem) private idToMarketItem;
 
-    function mintAndTransferCustom(NFTVoucher calldata voucher, address contractAddress)
+    function mintAndTransfer(NFTVoucher calldata voucher, address contractAddress)
         public
         nonReentrant
         returns (bool)
     {
         require(voucher.minPrice > 0, "Price must be at least 1 wei");
         address signer = _verify(voucher);
-        require(
-                hasRole(MINTER_ROLE, signer),
-                "Signature invalid or unauthorized"
-        );
 
         IERC721Merchant nft = IERC721Merchant(contractAddress);
 
-        nft.mint(msg.sender, voucher.tokenId, voucher.uri);
+        nft.mint(signer, voucher.tokenId, voucher.uri);
         
-        return createMarketItem(payable(signer), payable(msg.sender), contractAddress, voucher);
+        createMarketItem(payable(signer), payable(msg.sender), contractAddress, voucher);
+
+        uint256 itemId = _itemIds.current();
+        
+        return createSale(idToMarketItem[itemId]);
+    }
+
+    function mintAndTransferCustom(NFTVoucher calldata voucher, address contractAddress)
+        public
+        payable
+        nonReentrant
+        returns (bool)
+    {
+        return mintAndTransfer(voucher, contractAddress);
     }
 
     function createSale(MarketItem memory item) public nonReentrant returns (bool) {
@@ -142,6 +148,15 @@ contract ThredMerchant is
         return true;
     }
 
+    function createSaleCustom(MarketItem memory item)
+        public
+        payable
+        nonReentrant
+        returns (bool)
+    {
+        return createSale(item);
+    }
+
     function calculateFee(uint256 _num, uint256 percentWhole)
         internal
         pure
@@ -154,10 +169,8 @@ contract ThredMerchant is
 
     constructor(
         string memory domain,
-        string memory version,
-        address minter 
+        string memory version
     ) EIP712(domain, version) {
-        _setupRole(MINTER_ROLE, minter);
     }
 
     function getThredAddress() internal pure returns (address) {
@@ -190,6 +203,8 @@ contract ThredMerchant is
         }
         return true;
     }
+
+    
 
 
     function _hash(NFTVoucher calldata voucher)
@@ -266,10 +281,7 @@ contract ThredMerchant is
         NFTVoucher calldata voucher,
         address nftContract
     ) public returns (bool) {
-        require(
-            hasRole(MINTER_ROLE, msg.sender),
-            "invalid or unauthorized"
-        );
+
         require(voucher.minPrice > 0, "Price must be at least 1 wei");
 
         IERC721Merchant nft = IERC721Merchant(nftContract);
@@ -300,3 +312,5 @@ contract ThredMerchant is
         return items;
     }
 }
+
+
