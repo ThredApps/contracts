@@ -1,6 +1,6 @@
 {
   "name": "@thredapps/contracts",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Contracts for the Thred NFT Store Builder",
   "main": "index.js",
   "scripts": {
